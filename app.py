@@ -52,7 +52,6 @@ def welcome():
     )
 
 
-
 @app.route("/api/v1.0/precipitation")
 def precipitation():
     # Create our session (link) from Python to the DB
@@ -65,11 +64,12 @@ def precipitation():
     for date,prcp  in precipitation_data:
         all_prcp["date"] = date
         all_prcp["prcp"] = prcp
+        
+    session.close()
                
     return jsonify(all_prcp)
-    
-    session.close()
 
+    
 @app.route("/api/v1.0/stations")
 def stations():
     # Create our session (link) from Python to the DB
@@ -86,11 +86,12 @@ def stations():
     # Return a JSON list from the dataset
     stations = {}
     stations['stations'] = stations_ids
-               
+    
+    session.close()
+    
     return jsonify(stations)
 
-    session.close()
-
+    
 @app.route("/api/v1.0/tobs")
 def tobs():
     # Create our session (link) from Python to the DB
@@ -114,15 +115,41 @@ def tobs():
     # Return a JSON list from the dataset
     station_weather = {}
     station_weather['weather'] = weather_list
-               
+    
+    session.close()
+    
     return jsonify(station_weather)
+     
+# For the last two paths and related requirements, I decided to bring it together as one set of code or code block
+#  Maening, that instead of blocking  
+@app.route("/api/v1.0/<start>")
+@app.route('/api/v1.0/<start>/<end>')
+def date_range(start, end=None):
+    # Create our session (link) from Python to the DB
+    session = Session(engine)
+
+    """Return a list of min, avg and max tobs for start and end dates"""
+    # Query all tobs
+    if end==None:
+        query_results = session.query(func.min(Measurement.tobs), func.avg(Measurement.tobs), func.max(Measurement.tobs)).\
+                    filter(Measurement.date >= start).all()
+    else:
+        query_results = session.query(func.min(Measurement.tobs), func.avg(Measurement.tobs), func.max(Measurement.tobs)).\
+                    filter(Measurement.date >= start).filter(Measurement.date <= end).all()
+  
+    # Create a dictionary and append to a list named date_range_tobs_list
+    date_range_tobs_list = []
+    for min_tob, avg_tob, max_tob in query_results:
+        date_range_tobs_dictionary = {}
+        date_range_tobs_dictionary["min_temp"] = min_tob
+        date_range_tobs_dictionary["avg_temp"] = avg_tob
+        date_range_tobs_dictionary["max_temp"] = max_tob
+        date_range_tobs_list.append(date_range_tobs_dictionary)
     
     session.close()
 
+    return jsonify(date_range_tobs_list)
 
-   
 
 if __name__ == '__main__':
     app.run(debug=True)
-
-    
